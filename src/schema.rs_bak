@@ -1,0 +1,22 @@
+table! {
+  likes (id) {
+      id -> Integer,
+      created_at -> Timestamp,
+      tweet_id -> Integer,
+  }
+}
+
+table! {
+  tweets (id) {
+      id -> Integer,
+      created_at -> Timestamp,
+      message -> Text,
+  }
+}
+
+joinable!(likes -> tweets (tweet_id));
+
+allow_tables_to_appear_in_same_query!(
+  likes,
+  tweets,
+);
