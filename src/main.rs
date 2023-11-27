@@ -40,7 +40,7 @@ async fn main() -> io::Result<()> {
             // register HTTP requests handlers
             .service(tweet::list)
             // .service(tweet::get)
-            // .service(tweet::create)
+            .service(tweet::create)
             // .service(tweet::delete)
     })
     .bind("0.0.0.0:9090")?

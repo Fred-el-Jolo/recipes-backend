@@ -1,7 +1,8 @@
-use actix_web::web::Data;
+use actix_web::web::{Data, Json};
 use actix_web::{web, HttpResponse};
+use chrono::Utc;
 use diesel::result::Error;
-use diesel::{ExpressionMethods, Insertable, Queryable, Selectable, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, Insertable, Queryable, Selectable, QueryDsl, RunQueryDsl, QueryResult};
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
@@ -12,15 +13,13 @@ use crate::{DBPool, DBPooledConnection};
 pub type Tweets = Response<Tweet>;
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Tweet {
-    pub id: i32,
-    pub created_at: String,
+pub struct JSONTweet {
     pub message: String,
 }
 
-#[derive(Queryable, Selectable)]
+#[derive(Debug, Deserialize, Serialize, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::tweets)]
-pub struct TweetDB {
+pub struct Tweet {
     pub id: i32,
     pub created_at: String,
     pub message: String,
@@ -28,8 +27,7 @@ pub struct TweetDB {
 
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::tweets)]
-#[diesel(check_for_backend(diesel::sqlite::sqlite))]
-pub struct NewTweetDB {
+pub struct NewTweet {
     pub created_at: String,
     pub message: String,
 }
@@ -40,17 +38,14 @@ fn list_tweets(total_tweets: i64, conn: &mut DBPooledConnection) -> Result<Tweet
     let _tweets = match tweets
         .order(created_at.desc())
         .limit(total_tweets)
-        .load::<TweetDB>(conn)
+        .load::<Tweet>(conn)
     {
         Ok(tws) => tws,
         Err(_) => vec![],
     };
 
     Ok(Tweets {
-        results: _tweets
-            .into_iter()
-            .map(|t| t.to_tweet())
-            .collect::<Vec<Tweet>>(),
+        results: _tweets,
     })
 }
 
@@ -67,12 +62,12 @@ fn list_tweets(total_tweets: i64, conn: &mut DBPooledConnection) -> Result<Tweet
 //     }
 // }
 
-fn create_tweet(tweet: NewTweetDB, conn: &mut DBPooledConnection) -> Result<TweetDB, Error> {
+fn create_tweet(tweet: NewTweet, conn: &mut DBPooledConnection) -> Result<Tweet, Error> {
     use crate::schema::tweets::dsl::*;
 
-   let _ = diesel::insert_into(tweets).values(&tweet).execute(conn);
+    let result: QueryResult<Tweet> = diesel::insert_into(tweets).values(&tweet).get_result::<Tweet>(conn);
 
-    Ok(tweet_db.to_tweet())
+    result
 }
 
 // fn delete_tweet(_id: i32, conn: &mut DBPooledConnection) -> Result<(), Error> {
@@ -102,20 +97,25 @@ pub async fn list(pool: Data<DBPool>) -> HttpResponse {
         .json(tweets_with_likes)
 }
 
-// /// create a tweet `/tweets`
-// #[post("/tweets")]
-// pub async fn create(tweet_req: Json<TweetRequest>, pool: Data<DBPool>) -> HttpResponse {
-//     let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
+/// create a tweet `/tweets`
+#[post("/tweets")]
+pub async fn create(tweet: Json<JSONTweet>, pool: Data<DBPool>) -> HttpResponse {
+    let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
 
-//     let tweet = web::block(move || create_tweet(tweet_req.to_tweet().unwrap(), &mut conn)).await;
+    let new_tweet = NewTweet{
+        created_at: Utc::now().to_string(),
+        message: tweet.message.clone(),
+    };
 
-//     match tweet {
-//         Ok(Ok(tweet)) => HttpResponse::Created()
-//             .content_type(APPLICATION_JSON)
-//             .json(tweet),
-//         _ => HttpResponse::NoContent().await.unwrap(),
-//     }
-// }
+    let tweet = web::block(move || create_tweet(new_tweet, &mut conn)).await;
+
+    match tweet {
+        Ok(Ok(tweet)) => HttpResponse::Created()
+            .content_type(APPLICATION_JSON)
+            .json(tweet),
+        _ => HttpResponse::NoContent().await.unwrap(),
+    }
+}
 
 // /// find a tweet by its id `/tweets/{id}`
 // #[get("/tweets/{id}")]
