@@ -13,7 +13,13 @@ use r2d2::{Pool, PooledConnection};
 mod constants;
 mod response;
 mod schema;
-mod tweet;
+mod controller {
+    pub mod tweet_controller;
+}
+
+mod orm {
+    pub mod tweet_orm;
+}
 
 pub type DBPool = Pool<ConnectionManager<SqliteConnection>>;
 pub type DBPooledConnection = PooledConnection<ConnectionManager<SqliteConnection>>;
@@ -38,9 +44,9 @@ async fn main() -> io::Result<()> {
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
             // register HTTP requests handlers
-            .service(tweet::list)
+            .service(controller::tweet_controller::list)
             // .service(tweet::get)
-            .service(tweet::create)
+            .service(controller::tweet_controller::create)
             // .service(tweet::delete)
     })
     .bind("0.0.0.0:9090")?
