@@ -4,7 +4,7 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
-use crate::orm::tweet_orm::{NewTweet, list_tweets, create_tweet};
+use crate::orm::tweet_orm::{Tweet, list_tweets, create_tweet};
 use crate::DBPool;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -21,7 +21,7 @@ pub async fn list(pool: Data<DBPool>) -> HttpResponse {
     let tweets = web::block(move || list_tweets(50, &mut conn)).await.unwrap();
 
     let json_tweets: Vec<JSONTweetMessage> = tweets.unwrap().results.iter().map(|tweet| JSONTweetMessage {
-        id: Some(tweet.id),
+        id:tweet.id,
         created_at: Some(tweet.created_at.clone()),
         message: Some(tweet.message.clone()),
     }).collect();
@@ -36,7 +36,8 @@ pub async fn list(pool: Data<DBPool>) -> HttpResponse {
 pub async fn create(tweet: Json<JSONTweetMessage>, pool: Data<DBPool>) -> HttpResponse {
     let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
 
-    let new_tweet = NewTweet{
+    let new_tweet = Tweet {
+        id: None,
         created_at: Utc::now().to_string(),
         message: tweet.message.as_ref().unwrap().clone(),
     };

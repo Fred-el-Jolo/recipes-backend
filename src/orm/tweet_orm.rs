@@ -10,14 +10,8 @@ pub type Tweets = Response<Tweet>;
 #[derive(Debug, Deserialize, Serialize, Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::tweets)]
 pub struct Tweet {
-    pub id: i32,
-    pub created_at: String,
-    pub message: String,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = crate::schema::tweets)]
-pub struct NewTweet {
+    #[diesel(deserialize_as = i32)]
+    pub id: Option<i32>,
     pub created_at: String,
     pub message: String,
 }
@@ -39,7 +33,7 @@ pub fn list_tweets(total_tweets: i64, conn: &mut DBPooledConnection) -> Result<T
     })
 }
 
-pub fn create_tweet(tweet: NewTweet, conn: &mut DBPooledConnection) -> Result<Tweet, Error> {
+pub fn create_tweet(tweet: Tweet, conn: &mut DBPooledConnection) -> Result<Tweet, Error> {
     use crate::schema::tweets::dsl::*;
     
     diesel::insert_into(tweets).values(&tweet).get_result::<Tweet>(conn)
