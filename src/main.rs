@@ -15,10 +15,12 @@ mod response;
 mod schema;
 mod controller {
     pub mod tweet_controller;
+    pub mod user_controller;
 }
 
 mod orm {
     pub mod tweet_orm;
+    pub mod user_orm;
 }
 
 pub type DBPool = Pool<ConnectionManager<SqliteConnection>>;
@@ -45,9 +47,10 @@ async fn main() -> io::Result<()> {
             .wrap(middleware::Logger::default())
             // register HTTP requests handlers
             .service(controller::tweet_controller::list)
-            // .service(tweet::get)
             .service(controller::tweet_controller::create)
-            // .service(tweet::delete)
+            .service(controller::user_controller::list)
+            .service(controller::user_controller::get)
+            .service(controller::user_controller::create)
     })
     .bind("0.0.0.0:9090")?
     .run()
