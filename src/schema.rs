@@ -13,6 +13,7 @@ diesel::table! {
         id -> Integer,
         created_at -> Timestamp,
         message -> Text,
+        author_id -> Nullable<Integer>,
     }
 }
 

@@ -1,6 +1,7 @@
 use actix_web::web::{Data, Json};
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
+use actix_session::Session;
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{APPLICATION_JSON, CONNECTION_POOL_ERROR};
@@ -12,6 +13,7 @@ pub struct JSONTweetMessage {
     pub id: Option<i32>,
     pub created_at: Option<String>,
     pub message: Option<String>,
+    pub author_id: Option<i32>,
 }
 
 /// list 50 last tweets `/tweets`
@@ -24,6 +26,7 @@ pub async fn list(pool: Data<DBPool>) -> HttpResponse {
         id:tweet.id,
         created_at: Some(tweet.created_at.clone()),
         message: Some(tweet.message.clone()),
+        author_id: tweet.author_id,
     }).collect();
 
     HttpResponse::Ok()
@@ -33,13 +36,25 @@ pub async fn list(pool: Data<DBPool>) -> HttpResponse {
 
 /// create a tweet `/tweets`
 #[post("/tweets")]
-pub async fn create(tweet: Json<JSONTweetMessage>, pool: Data<DBPool>) -> HttpResponse {
+pub async fn create(session: Session, tweet: Json<JSONTweetMessage>, pool: Data<DBPool>) -> HttpResponse {
     let mut conn = pool.get().expect(CONNECTION_POOL_ERROR);
+
+    let id = match tweet.author_id {
+        Some(v) => Some(v),
+        None => match session.get::<String>("user_id") {
+            Ok(Some(u)) => Some(u.parse::<i32>().unwrap()),
+            _ => None,
+        },
+    };
+
+    println!("Fred there! {:?}", tweet.id);
+    println!("Fred there2! {:?}", id);
 
     let new_tweet = Tweet {
         id: None,
         created_at: Utc::now().to_string(),
         message: tweet.message.as_ref().unwrap().clone(),
+        author_id: id,
     };
 
     let tweet = web::block(move || create_tweet(new_tweet, &mut conn)).await;

@@ -14,6 +14,7 @@ pub struct Tweet {
     pub id: Option<i32>,
     pub created_at: String,
     pub message: String,
+    pub author_id: Option<i32>,
 }
 
 pub fn list_tweets(total_tweets: i64, conn: &mut DBPooledConnection) -> Result<Tweets, Error> {
